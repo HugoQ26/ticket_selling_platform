@@ -1,6 +1,7 @@
 const Events = require("../database/eventsDb");
 const Tickets = require("../database/ticketsDb");
 const Payment = require("./payment");
+const debug = require("debug")("events:eventsCtrl");
 
 module.exports = class EventsCtrl {
   static getAllEvents(req, res) {
@@ -9,8 +10,22 @@ module.exports = class EventsCtrl {
         let limit = req.query.limit || "";
         const events = await Events.getAllEvents(limit);
         res.json(events);
+        debug(
+          "GetAllEvents OK - ",
+          req.method,
+          req.originalUrl,
+          res.statusCode
+        );
       } catch (err) {
-        res.send(err);
+        res.status(404);
+        res.json({ message: "Error", err });
+
+        debug(
+          "GetAllEvents ERROR - ",
+          req.method,
+          req.originalUrl,
+          res.statusCode
+        );
       }
     })();
   }
@@ -21,23 +36,37 @@ module.exports = class EventsCtrl {
     (async () => {
       try {
         const event = await Events.getOneEvent(id);
+        event === null
+          ? res.status(404).json({ message: "No Event found" })
+          : res.json(event);
 
-        res.json(event);
+        debug("GetOneEvent OK - ", req.method, req.originalUrl, res.statusCode);
       } catch (err) {
-        res.send(err);
+        res.status(404);
+        res.json({ message: "Error", err });
+
+        debug(
+          "GetOneEvent ERROR - ",
+          req.method,
+          req.originalUrl,
+          res.statusCode
+        );
       }
     })();
   }
 
   static addEvent(req, res, next) {
     const { name, date, ticketQty, ticketPrice } = req.body;
-
+    // TODO validate req.body
     (async () => {
       try {
         const event = await Events.addEvent(name, date, ticketQty, ticketPrice);
         res.json({ message: "Event added", event });
       } catch (err) {
-        res.send(err);
+        res.status(404);
+        res.json({ message: "Error", err });
+
+        debug("addEvent ERROR - ", req.method, req.originalUrl, res.statusCode);
       }
     })();
   }
@@ -49,8 +78,22 @@ module.exports = class EventsCtrl {
       try {
         const { ticketQty } = await Events.getTicketsQty(id);
         res.json(ticketQty);
+        debug(
+          "getEventTickets OK - ",
+          req.method,
+          req.originalUrl,
+          res.statusCode
+        );
       } catch (err) {
-        res.send(err);
+        res.status(404);
+        res.json({ message: "Error", err });
+
+        debug(
+          "getEventTickets ERROR - ",
+          req.method,
+          req.originalUrl,
+          res.statusCode
+        );
       }
     })();
   }
@@ -63,7 +106,15 @@ module.exports = class EventsCtrl {
         const event = await Events.delOneEvent(id);
         res.json({ message: "Event deleted", event });
       } catch (err) {
-        res.send(err);
+        res.status(404);
+        res.json({ message: "Error", err });
+
+        debug(
+          "deleteOneEvent ERROR - ",
+          req.method,
+          req.originalUrl,
+          res.statusCode
+        );
       }
     })();
   }
@@ -78,9 +129,9 @@ module.exports = class EventsCtrl {
       ticketsBought
     } = req.session.cart;
 
-    try {
-      (async () => {
-        const { ticketQty } = await Events.getTicketsQty(eventName);
+    (async () => {
+      try {
+        const { ticketQty } = await Events.getTicketsQty(eventId);
 
         if (ticketsBought <= ticketQty) {
           const { amount, currency } = await Payment.charge(
@@ -110,15 +161,37 @@ module.exports = class EventsCtrl {
               date: Date.now()
             }
           });
+          debug(
+            "buyTickets OK - ",
+            req.method,
+            req.originalUrl,
+            res.statusCode
+          );
         } else {
           res.json({
             message: "Transaction failed",
-            reason: "There is not enought tickets available"
+            reason: "There is not enought tickets available",
+            ticketsBought,
+            ticketQty
           });
+          debug(
+            "buyTickets FAIL - ",
+            req.method,
+            req.originalUrl,
+            res.statusCode
+          );
         }
-      })();
-    } catch (error) {
-      res.send(err);
-    }
+      } catch (err) {
+        res.status(404);
+        res.json({ message: "Error", err });
+
+        debug(
+          "buyTickets ERROR - ",
+          req.method,
+          req.originalUrl,
+          res.statusCode
+        );
+      }
+    })();
   }
 };

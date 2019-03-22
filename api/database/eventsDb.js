@@ -1,4 +1,5 @@
 const EventsModel = require("../model/eventSchema");
+const debug = require("debug")("events:eventsDb");
 
 module.exports = class Events {
   static getAllEvents(limit = "") {
@@ -41,7 +42,7 @@ module.exports = class Events {
 
   static delOneEvent(_id) {
     return new Promise((resolve, reject) => {
-      EventsModel.findByIdAndRemove({ _id }, (err, event) => {
+      EventsModel.findOneAndDelete({ _id }, (err, event) => {
         if (err) {
           return reject(err);
         }
@@ -52,7 +53,7 @@ module.exports = class Events {
 
   static incDecTickets(_id, ticketsBought) {
     return new Promise((resolve, reject) => {
-      EventsModel.findByIdAndUpdate(
+      EventsModel.findOneAndUpdate(
         { _id },
         { $inc: { ticketQty: -ticketsBought } },
         { new: true },
@@ -68,8 +69,8 @@ module.exports = class Events {
 
   static dateParse({ date }) {
     return new Promise((resolve, reject) => {
-      if (!date) {
-        return reject(new Error("Something wrong with date parse"));
+      if (typeof date.getMonth != "function") {
+        return reject();
       }
       const dateParsed = {
         date: date.toLocaleDateString(),

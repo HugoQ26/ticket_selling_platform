@@ -2,6 +2,7 @@
 const express = require("express");
 const http = require("http");
 const mongoose = require("mongoose");
+const debug = require("debug")("events:server");
 const bodyParser = require("body-parser");
 // eslint-disable-next-line no-unused-vars
 const env = require("dotenv").config();
@@ -44,19 +45,20 @@ app.use(bodyParser.json({ type: "application/json" }));
 const PORT = process.env.PORT || 3000;
 
 app.use("/api", api);
-app.use((req, res)=>{
-  res.status(404).send('Page not found 404');
-})
+app.use((req, res) => {
+  res.status(404).send("Page not found 404");
+});
+
+debug("Aplication is booting");
 
 const server = http.createServer(app);
-
 mongoose
   .connect(mongodbUri, { useNewUrlParser: true })
-  .then(() => {
-    console.log("Connected to mongoDb");
+  .then(res => {
+    debug("Connected to mongoDb");
     server.listen(PORT, () => {
-      console.log(`Serveris running on port ${PORT}`);
-    });
+      debug(`Server is running on port ${PORT}`);
+    });    
   })
   .catch(err => {
     throw Error(err);
