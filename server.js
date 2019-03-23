@@ -46,7 +46,11 @@ const PORT = process.env.PORT || 3000;
 
 app.use("/api", api);
 app.use((req, res) => {
-  res.status(404).send("Page not found 404");
+  res.status(404).json({message: "Page not found 404"});
+});
+
+app.use((err, req, res, next) => {
+  res.send({ message: "Error", err: err.message, errstack: err.stack });
 });
 
 debug("Aplication is booting");
@@ -58,7 +62,7 @@ mongoose
     debug("Connected to mongoDb");
     server.listen(PORT, () => {
       debug(`Server is running on port ${PORT}`);
-    });    
+    });
   })
   .catch(err => {
     throw Error(err);
