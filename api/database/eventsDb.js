@@ -3,19 +3,12 @@ const debug = require("debug")("events:eventsDb");
 
 module.exports = class Events {
   static getAllEvents(limit = "") {
-    return new Promise((resolve, reject) => {
-      EventsModel.find(
-        { ticketQty: { $gt: 0 }, date: { $gt: Date.now() } },
-        "name date ticketQty",
-        { sort: { date: 1 }, limit: limit },
-        (err, events) => {
-          if (err) {
-            return reject(err);
-          }
-          resolve(events);
-        }
-      );
-    });
+    const cursor = EventsModel.find(
+      { ticketQty: { $gt: 0 }, date: { $gt: Date.now() } },
+      "name date ticketQty",
+      { sort: { date: 1 }, limit: limit }
+    ).cursor();
+    return cursor;
   }
 
   static getOneEvent(_id) {

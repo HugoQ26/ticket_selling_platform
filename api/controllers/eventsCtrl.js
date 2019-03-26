@@ -7,16 +7,28 @@ const { validationResult } = require("express-validator/check");
 module.exports = class EventsCtrl {
   static getAllEvents(req, res, next) {
     (async () => {
+      console.time("start");
+
       try {
         let limit = req.query.limit || "";
-        const events = await Events.getAllEvents(limit);
-        res.json(events);
-        debug(
-          "GetAllEvents OK - ",
-          req.method,
-          req.originalUrl,
-          res.statusCode
-        );
+        const cursor = Events.getAllEvents(limit);
+        let data = [];
+        let count = 1;
+        cursor.on("data", events => {
+          data.push(events);
+          console.log(events, count++);
+        });
+        cursor.on("close", () => {
+          res.json(data);
+          console.timeEnd("start");
+
+          debug(
+            "GetAllEvents OK - ",
+            req.method,
+            req.originalUrl,
+            res.statusCode
+          );
+        });
       } catch (err) {
         res.status(500);
         next(err);
@@ -44,7 +56,7 @@ module.exports = class EventsCtrl {
 
   static addEvent(req, res, next) {
     const { name, date, ticketQty, ticketPrice } = req.body;
-    const errors = validationResult(req);    
+    const errors = validationResult(req);
 
     if (!errors.isEmpty()) {
       return res
@@ -99,7 +111,7 @@ module.exports = class EventsCtrl {
   static buyTickets(req, res, next) {
     const { amountInEuroCents, email, ticketsBought } = req.body;
     const eventId = req.params.id;
-    const errors = validationResult(req);    
+    const errors = validationResult(req);
 
     if (!errors.isEmpty()) {
       return res
@@ -119,7 +131,9 @@ module.exports = class EventsCtrl {
             ticketsBought
           };
 
-          res.status(201).json({ message: "Cart created", cart: req.session.cart });
+          res
+            .status(201)
+            .json({ message: "Cart created", cart: req.session.cart });
           const save = req.session.save();
 
           debug(
