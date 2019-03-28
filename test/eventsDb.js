@@ -1,18 +1,23 @@
-/* eslint-disable no-undef */
-process.env.NODE_ENV = "test";
 const chai = require("chai");
 const expect = chai.expect;
 const Events = require("../api/database/eventsDb");
 const server = require("../server");
+const mongoose = require("mongoose");
+const mongodbUri = process.env.MONGODB_URI || "mongodb://localhost:27017";
 
 describe("Unit tests", () => {
   describe("Class Events", () => {
     describe("Function getAllEvents()", () => {
       it("it should be an array", done => {
-        Events.getAllEvents().then(result => {
-          expect(result).to.be.an("array");
-          done();
-        });
+        Events.getAllEvents()
+          .then(result => {
+            expect(result).to.be.an("array");
+            done();
+          })
+          .catch(err => {
+            console.log(err);
+            done();
+          });
       });
 
       it("it should NOT be empty array", done => {

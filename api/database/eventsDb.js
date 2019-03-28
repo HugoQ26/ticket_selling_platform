@@ -7,7 +7,7 @@ module.exports = class Events {
       { ticketQty: { $gt: 0 }, date: { $gt: Date.now() } },
       "name date ticketQty",
       { sort: { date: 1 }, limit: limit }
-    ).cursor();
+    ).cursor({ transform: JSON.stringify });
     return cursor;
   }
 
