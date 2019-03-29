@@ -4,9 +4,11 @@ module.exports = class PaymentGateway {
       switch (token) {
         case "card_error":
           //return reject(new Error("Your card has been declined."));
-          return reject("Your card has been declined.");
+          return reject(new Error("Your card has been declined."));
         case "payment_error":
-          return reject("Something went wrong with your transaction.");
+          return reject(
+            new Error("Something went wrong with your transaction.")
+          );
         default:
           resolve({ amount, currency });
       }
