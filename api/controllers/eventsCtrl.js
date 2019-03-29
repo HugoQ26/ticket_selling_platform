@@ -1,8 +1,10 @@
-const Events = require("../database/eventsDb");
-const Tickets = require("../database/ticketsDb");
+//const Events = require("../database/eventsDb");
+const Events = require("../database/sqlEvents");
+const Tickets = require("../database/sqlTickets");
 const Payment = require("./payment");
 const debug = require("debug")("events:eventsCtrl");
 const { validationResult } = require("express-validator/check");
+const sequelize = require("../database/sqlDb");
 
 module.exports = class EventsCtrl {
   static getAllEvents(req, res, next) {
@@ -11,24 +13,8 @@ module.exports = class EventsCtrl {
 
       try {
         let limit = req.query.limit || "";
-        const cursor = Events.getAllEvents(limit);
-        let data = [];
-        let count = 1;
-        cursor.on("data", events => {
-          data.push(events);
-          console.log(events, count++);
-        });
-        cursor.on("close", () => {
-          res.json(data);
-          console.timeEnd("start");
-
-          debug(
-            "GetAllEvents OK - ",
-            req.method,
-            req.originalUrl,
-            res.statusCode
-          );
-        });
+        const all = await Events.getAllEvents();
+        res.json(all);
       } catch (err) {
         res.status(500);
         next(err);
@@ -74,45 +60,10 @@ module.exports = class EventsCtrl {
     })();
   }
 
-  static getEventTickets(req, res, next) {
-    const { id } = req.params;
-
-    (async () => {
-      try {
-        const { ticketQty } = await Events.getTicketsQty(id);
-        res.json(ticketQty);
-        debug(
-          "getEventTickets OK - ",
-          req.method,
-          req.originalUrl,
-          res.statusCode
-        );
-      } catch (err) {
-        res.status(500);
-        next(err);
-      }
-    })();
-  }
-
-  static deleteOneEvent(req, res, next) {
-    const { id } = req.params;
-
-    (async () => {
-      try {
-        const event = await Events.delOneEvent(id);
-        res.json({ message: "Event deleted", event });
-      } catch (err) {
-        res.status(500);
-        next(err);
-      }
-    })();
-  }
-
   static buyTickets(req, res, next) {
-    const { amountInEuroCents, email, ticketsBought } = req.body;
-    const eventId = req.params.id;
+    const { amountInEuroCents, email, ticketsBought, token } = req.body;
+    const id = req.params.id;
     const errors = validationResult(req);
-
     if (!errors.isEmpty()) {
       return res
         .status(422)
@@ -120,112 +71,41 @@ module.exports = class EventsCtrl {
     }
 
     (async () => {
+      let transaction;
       try {
-        const { ticketQty } = await Events.getTicketsQty(eventId);
+        transaction = await sequelize.transaction();
+        const tickets = await Events.incDecTickets(
+          id,
+          ticketsBought,
+          transaction
+        );
+        const { amount, currency } = await Payment.charge(
+          amountInEuroCents,
+          token
+        );
+        const savePurchase = await Tickets.addTicket(
+          Date.now(),
+          id,
+          email,
+          ticketsBought,
+          amountInEuroCents,
+          transaction
+        );
 
-        if (ticketsBought <= ticketQty) {
-          req.session.cart = {
-            amountInEuroCents,
+        await transaction.commit();
+        res.json({
+          message: "Tickets purchuased sucessfully",
+          purchase: {
+            eventId: id,
+            ticketsBought,
+            amount,
+            currency,
             email,
-            eventId,
-            ticketsBought
-          };
-
-          res
-            .status(201)
-            .json({ message: "Cart created", cart: req.session.cart });
-          const save = req.session.save();
-
-          debug(
-            "buyTickets OK - ",
-            req.method,
-            req.originalUrl,
-            res.statusCode
-          );
-        } else {
-          res.json({
-            message: "Transaction failed",
-            reason: "There is not enought tickets available",
-            ticketsBought,
-            ticketQty
-          });
-          debug(
-            "buyTickets FAIL - ",
-            req.method,
-            req.originalUrl,
-            res.statusCode
-          );
-        }
+            date: Date.now()
+          }
+        });
       } catch (err) {
-        res.status(500);
-        next(err);
-      }
-    })();
-  }
-
-  static charge(req, res, next) {
-    token = req.body.stripeToken;
-
-    const {
-      amountInEuroCents,
-      email,
-      eventId,
-      ticketsBought
-    } = req.session.cart;
-
-    (async () => {
-      try {
-        const { ticketQty } = await Events.getTicketsQty(eventId);
-
-        if (ticketsBought <= ticketQty) {
-          const { amount, currency } = await Payment.charge(
-            amountInEuroCents,
-            token
-          );
-
-          const updateTickets = await Events.incDecTickets(
-            eventId,
-            ticketsBought
-          );
-
-          const savePurchase = await Tickets.addTicket(
-            Date.now(),
-            eventId,
-            email,
-            ticketsBought,
-            amountInEuroCents / 100
-          );
-          res.json({
-            message: "Tickets purchuased sucessfully",
-            purchase: {
-              eventId,
-              ticketsBought,
-              amount: amountInEuroCents / 100,
-              email,
-              date: Date.now()
-            }
-          });
-          debug(
-            "buyTickets OK - ",
-            req.method,
-            req.originalUrl,
-            res.statusCode
-          );
-        } else {
-          res.json({
-            message: "Transaction failed",
-            reason: "There is not enought tickets available",
-            ticketsBought,
-            ticketQty
-          });
-          debug(
-            "buyTickets FAIL - ",
-            req.method,
-            req.originalUrl,
-            res.statusCode
-          );
-        }
-      } catch (err) {
+        await transaction.rollback();
         res.status(500);
         next(err);
       }

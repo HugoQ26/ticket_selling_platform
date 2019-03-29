@@ -2,6 +2,6 @@ module.exports = (req, res, next) => {
   if (req.session.admin) {
     next();
   } else {
-    res.redirect("/");
+    res.json({ error: "You have to have admin privilages" });
   }
 };

@@ -1,17 +1,36 @@
-// eslint-disable-next-line no-unused-vars
-const dotenv = require("dotenv").config();
-const mongoose = require("mongoose");
+const Sequelize = require("sequelize");
+const sequelize = require("../database/sqlDb");
 
-const Schema = mongoose.Schema;
-
-const ticketSchema = new Schema({
-  date: { type: Date, default: Date.now() },
-  eventName: { type: String, required: true },
-  userEmail: { type: String, required: true },
-  ticketBought: { type: Number, required: true },
-  cashCharged: { type: Number, required: true }
+const Ticket = sequelize.define("tickets", {
+  id: {
+    type: Sequelize.INTEGER,
+    autoIncrement: true,
+    allowNull: false,
+    unique: true,
+    primaryKey: true
+  },
+  date: {
+    type: Sequelize.STRING,
+    allowNull: false
+  },
+  eventId: {
+    type: Sequelize.STRING,
+    allowNull: false
+  },
+  userEmail: {
+    type: Sequelize.STRING,
+    allowNull: false
+  },
+  ticketBought: {
+    type: Sequelize.INTEGER,
+    allowNull: false,
+    validate: { min: 1 }
+  },
+  cashCharged: {
+    type: Sequelize.INTEGER,
+    allowNull: false,
+    validate: { min: 1 }
+  }
 });
-
-const Ticket = mongoose.model("ticket", ticketSchema);
 
 module.exports = Ticket;
